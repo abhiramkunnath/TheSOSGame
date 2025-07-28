@@ -22,7 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.thesosgame.data.*
 import com.example.thesosgame.game.GameLogic
+import com.example.thesosgame.ui.theme.*
 
 @Composable
 fun GameScreen(
@@ -59,16 +62,29 @@ fun GameScreen(
     }
     
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.background,
+                        Primary.copy(alpha = 0.02f),
+                        MaterialTheme.colorScheme.background
+                    )
+                )
+            )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp)
-                .padding(top = 32.dp) // Add top padding to avoid notification panel
+                .padding(horizontal = 16.dp)
+                .padding(top = 16.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(
+                if (gameState.players.size > 4) 8.dp else 12.dp
+            )
         ) {
-            // Top Bar with game info
-            GameHeader(
+            // Modern Top Bar
+            ModernGameHeader(
                 gameState = gameState,
                 onRestart = { 
                     showRestartConfirmation = true
@@ -78,14 +94,14 @@ fun GameScreen(
                 }
             )
             
-            // Score Board
-            ScoreBoard(gameState = gameState)
+            // Modern Score Board
+            ModernScoreBoard(gameState = gameState)
             
             // Game Board - takes up remaining space
             Box(
                 modifier = Modifier.weight(1f)
             ) {
-                GameBoard(
+                ModernGameBoard(
                     gameState = gameState,
                     selectedCellValue = selectedCellValue,
                     onCellClick = { row, col ->
@@ -102,8 +118,8 @@ fun GameScreen(
                 )
             }
             
-            // Current player and S/O selection - moved to bottom
-            CurrentPlayerSection(
+            // Modern Current player section
+            ModernCurrentPlayerSection(
                 gameState = gameState,
                 selectedCellValue = selectedCellValue,
                 onCellValueSelected = { selectedCellValue = it }
@@ -561,36 +577,6 @@ private fun ScoreBoard(gameState: GameState) {
 }
 
 @Composable
-private fun CompactPlayerScore(
-    player: Player,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp) // Very small color indicator
-                .background(player.color, RoundedCornerShape(5.dp))
-        )
-        Text(
-            text = player.name,
-            fontSize = 12.sp, // Smaller font for compact layout
-            color = player.color,
-            modifier = Modifier.weight(1f),
-            maxLines = 1
-        )
-        Text(
-            text = "${player.score}",
-            fontSize = 12.sp, // Smaller font
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
 private fun GameOverDialog(
     winner: Player?,
     players: List<Player>,
@@ -728,6 +714,495 @@ private fun ScoredToast(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
+            )
+        }
+    }
+}
+
+// Modern UI Components
+@Composable
+private fun ModernGameHeader(
+    gameState: GameState,
+    onRestart: () -> Unit,
+    onBackToOnboarding: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 40.dp), // Increased padding to bring header further down
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "SOS Game",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Primary
+                )
+                Text(
+                    text = "${gameState.boardSize}×${gameState.boardSize} • ${gameState.players.size} Players",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onRestart,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Primary.copy(alpha = 0.1f),
+                        contentColor = Primary
+                    )
+                ) {
+                    Text("Restart")
+                }
+                
+                Button(
+                    onClick = onBackToOnboarding,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Secondary.copy(alpha = 0.1f),
+                        contentColor = Secondary
+                    )
+                ) {
+                    Text("New Game")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModernScoreBoard(gameState: GameState) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(
+                horizontal = 16.dp, 
+                vertical = if (gameState.players.size > 2) 12.dp else 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(if (gameState.players.size > 2) 8.dp else 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Accent)
+                )
+                Text(
+                    text = "Scores",
+                    fontSize = if (gameState.players.size > 2) 16.sp else 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            
+            if (gameState.players.size > 2) {
+                // Two-column grid layout for 3+ players
+                val rows = (gameState.players.size + 1) / 2
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (rowIndex in 0 until rows) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            for (colIndex in 0 until 2) {
+                                val playerIndex = rowIndex * 2 + colIndex
+                                if (playerIndex < gameState.players.size) {
+                                    CompactPlayerScore(
+                                        player = gameState.players[playerIndex],
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                } else {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Regular layout for 2 players
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    gameState.players.forEach { player ->
+                        ModernPlayerScore(player = player)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactPlayerScore(
+    player: Player,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(6.dp),
+        color = player.color.copy(alpha = 0.04f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(player.color)
+                )
+                Text(
+                    text = player.name,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = player.color,
+                    maxLines = 1
+                )
+            }
+            
+            Text(
+                text = "${player.score}",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = player.color
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModernPlayerScore(
+    player: Player,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = player.color.copy(alpha = 0.06f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(player.color)
+                )
+                Text(
+                    text = player.name,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = player.color,
+                    maxLines = 1
+                )
+            }
+            
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = player.color.copy(alpha = 0.12f)
+            ) {
+                Text(
+                    text = "${player.score}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = player.color,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModernGameBoard(
+    gameState: GameState,
+    selectedCellValue: CellValue,
+    onCellClick: (Int, Int) -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
+    ) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(gameState.boardSize),
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            userScrollEnabled = false
+        ) {
+            itemsIndexed(gameState.board.flatten()) { index, cell ->
+                val row = index / gameState.boardSize
+                val col = index % gameState.boardSize
+                
+                ModernGameCell(
+                    cell = cell,
+                    gameState = gameState,
+                    onClick = { onCellClick(row, col) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModernGameCell(
+    cell: Cell,
+    gameState: GameState,
+    onClick: () -> Unit
+) {
+    val backgroundColor = if (cell.value != CellValue.EMPTY && cell.playerId >= 0) {
+        gameState.players[cell.playerId].color.copy(alpha = 0.08f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    }
+    
+    val borderColor = if (cell.value != CellValue.EMPTY && cell.playerId >= 0) {
+        gameState.players[cell.playerId].color.copy(alpha = 0.4f)
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+    }
+    
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(backgroundColor)
+            .border(
+                width = 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .clickable(enabled = cell.value == CellValue.EMPTY && !gameState.gameEnded) {
+                onClick()
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        // Strike-through lines behind text
+        if (cell.isPartOfSOS && cell.sosDirections.isNotEmpty()) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val strokeWidth = when {
+                    gameState.boardSize <= 8 -> 5.dp.toPx()
+                    gameState.boardSize <= 10 -> 3.5.dp.toPx()
+                    gameState.boardSize <= 12 -> 2.5.dp.toPx()
+                    else -> 1.5.dp.toPx()
+                }
+                cell.sosDirections.forEach { direction ->
+                    val playerId = cell.sosDirectionPlayerMap[direction] ?: -1
+                    if (playerId >= 0 && playerId < gameState.players.size) {
+                        val sosColor = gameState.players[playerId].color
+                        when (direction) {
+                            SOSDirection.HORIZONTAL -> {
+                                drawLine(
+                                    color = sosColor,
+                                    start = Offset(size.width * 0.15f, size.height / 2),
+                                    end = Offset(size.width * 0.85f, size.height / 2),
+                                    strokeWidth = strokeWidth,
+                                    cap = StrokeCap.Round
+                                )
+                            }
+                            SOSDirection.VERTICAL -> {
+                                drawLine(
+                                    color = sosColor,
+                                    start = Offset(size.width / 2, size.height * 0.15f),
+                                    end = Offset(size.width / 2, size.height * 0.85f),
+                                    strokeWidth = strokeWidth,
+                                    cap = StrokeCap.Round
+                                )
+                            }
+                            SOSDirection.DIAGONAL_DOWN_RIGHT -> {
+                                drawLine(
+                                    color = sosColor,
+                                    start = Offset(size.width * 0.15f, size.height * 0.15f),
+                                    end = Offset(size.width * 0.85f, size.height * 0.85f),
+                                    strokeWidth = strokeWidth,
+                                    cap = StrokeCap.Round
+                                )
+                            }
+                            SOSDirection.DIAGONAL_DOWN_LEFT -> {
+                                drawLine(
+                                    color = sosColor,
+                                    start = Offset(size.width * 0.85f, size.height * 0.15f),
+                                    end = Offset(size.width * 0.15f, size.height * 0.85f),
+                                    strokeWidth = strokeWidth,
+                                    cap = StrokeCap.Round
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Text on top
+        if (cell.value != CellValue.EMPTY) {
+            val hasStrikeThrough = cell.isPartOfSOS && cell.sosDirections.isNotEmpty()
+            val textColor = if (cell.playerId >= 0) {
+                gameState.players[cell.playerId].color
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
+            
+            if (hasStrikeThrough) {
+                // Enhanced text with stroke effect for visibility
+                Box {
+                    // Stroke layers
+                    for (dx in -1..1) {
+                        for (dy in -1..1) {
+                            if (dx != 0 || dy != 0) {
+                                Text(
+                                    text = cell.value.name,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.surface,
+                                    modifier = Modifier.offset(
+                                        x = (dx * 0.8f).dp,
+                                        y = (dy * 0.8f).dp
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Main text
+                    Text(
+                        text = cell.value.name,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = textColor
+                    )
+                }
+            } else {
+                Text(
+                    text = cell.value.name,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModernCurrentPlayerSection(
+    gameState: GameState,
+    selectedCellValue: CellValue,
+    onCellValueSelected: (CellValue) -> Unit
+) {
+    if (!gameState.gameEnded) {
+        val currentPlayer = gameState.players[gameState.currentPlayerIndex]
+        
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(currentPlayer.color)
+                    )
+                    Text(
+                        text = "${currentPlayer.name}'s Turn",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = currentPlayer.color
+                    )
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ModernLetterButton(
+                        letter = "S",
+                        selected = selectedCellValue == CellValue.S,
+                        playerColor = currentPlayer.color,
+                        onClick = { onCellValueSelected(CellValue.S) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    ModernLetterButton(
+                        letter = "O",
+                        selected = selectedCellValue == CellValue.O,
+                        playerColor = currentPlayer.color,
+                        onClick = { onCellValueSelected(CellValue.O) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModernLetterButton(
+    letter: String,
+    selected: Boolean,
+    playerColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(64.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = if (selected) playerColor else MaterialTheme.colorScheme.surfaceVariant,
+        shadowElevation = if (selected) 8.dp else 2.dp
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Text(
+                text = letter,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = if (selected) MaterialTheme.colorScheme.surface else playerColor
             )
         }
     }
