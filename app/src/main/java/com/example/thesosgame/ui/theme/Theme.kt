@@ -9,35 +9,67 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+private val ModernDarkColorScheme = darkColorScheme(
+    primary = Primary,
+    onPrimary = Surface,
+    primaryContainer = PrimaryVariant,
+    onPrimaryContainer = Surface,
+    secondary = Secondary,
+    onSecondary = Surface,
+    secondaryContainer = SecondaryVariant,
+    onSecondaryContainer = Surface,
+    tertiary = Accent,
+    onTertiary = DarkBackground,
+    tertiaryContainer = AccentVariant,
+    onTertiaryContainer = Surface,
+    background = DarkBackground,
+    onBackground = DarkOnSurface,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    error = Error,
+    onError = Surface,
+    outline = DarkOnSurfaceVariant,
+    outlineVariant = DarkSurfaceVariant
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+private val ModernLightColorScheme = lightColorScheme(
+    primary = Primary,
+    onPrimary = Surface,
+    primaryContainer = Primary.copy(alpha = 0.1f),
+    onPrimaryContainer = PrimaryVariant,
+    secondary = Secondary,
+    onSecondary = Surface,
+    secondaryContainer = Secondary.copy(alpha = 0.1f),
+    onSecondaryContainer = SecondaryVariant,
+    tertiary = Accent,
+    onTertiary = Surface,
+    tertiaryContainer = Accent.copy(alpha = 0.1f),
+    onTertiaryContainer = AccentVariant,
+    background = Background,
+    onBackground = OnSurface,
+    surface = Surface,
+    onSurface = OnSurface,
+    surfaceVariant = SurfaceVariant,
+    onSurfaceVariant = OnSurfaceVariant,
+    error = Error,
+    onError = Surface,
+    outline = OnSurfaceVariant,
+    outlineVariant = SurfaceVariant
 )
 
 @Composable
 fun TheSOSgameTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // Disable dynamic color to use our custom theme
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -45,9 +77,17 @@ fun TheSOSgameTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> ModernDarkColorScheme
+        else -> ModernLightColorScheme
+    }
+    
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
     }
 
     MaterialTheme(

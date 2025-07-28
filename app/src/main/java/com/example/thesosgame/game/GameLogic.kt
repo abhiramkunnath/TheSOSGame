@@ -2,17 +2,18 @@ package com.example.thesosgame.game
 
 import androidx.compose.ui.graphics.Color
 import com.example.thesosgame.data.*
+import com.example.thesosgame.ui.theme.*
 
 class GameLogic {
     
     fun initializeGame(config: GameConfig): GameState {
         val playerColors = listOf(
-            Color(0xFFE57373), // Soft Red
-            Color(0xFF64B5F6), // Soft Blue
-            Color(0xFF81C784), // Soft Green
-            Color(0xFFBA68C8), // Soft Purple
-            Color(0xFF4DB6AC), // Soft Teal
-            Color(0xFFFFB74D)  // Soft Orange
+            Player1, // Modern Blue
+            Player2, // Modern Red
+            Player3, // Modern Emerald
+            Player4, // Modern Amber
+            Player5, // Modern Purple
+            Player6  // Modern Pink
         )
         
         val players = (0 until config.numberOfPlayers).map { index ->
