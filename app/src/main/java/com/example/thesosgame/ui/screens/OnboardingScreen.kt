@@ -1,11 +1,15 @@
 package com.example.thesosgame.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +33,13 @@ fun OnboardingScreen(
     var customBoardSize by remember { mutableStateOf("") }
     var numberOfPlayers by remember { mutableIntStateOf(2) }
     var isCustomSize by remember { mutableStateOf(false) }
+    var timerEnabled by remember { mutableStateOf(true) }
+    var timerDuration by remember { mutableIntStateOf(10) }
+    
+    // Collapsible state for each card
+    var boardSizeExpanded by remember { mutableStateOf(true) }
+    var playersExpanded by remember { mutableStateOf(false) }
+    var settingsExpanded by remember { mutableStateOf(false) }
     
     Box(
         modifier = Modifier
@@ -49,14 +60,14 @@ fun OnboardingScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(32.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             // Modern Hero Section
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Title with gradient effect
                 Text(
@@ -94,22 +105,57 @@ fun OnboardingScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { boardSizeExpanded = !boardSizeExpanded },
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Primary)
-                        )
-                        Text(
-                            text = "Board Size",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Primary)
+                            )
+                            Text(
+                                text = "Board Size",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Show current selection when collapsed
+                            if (!boardSizeExpanded) {
+                                Text(
+                                    text = if (isCustomSize && customBoardSize.isNotEmpty()) {
+                                        "${customBoardSize}×${customBoardSize}"
+                                    } else {
+                                        "${selectedBoardSize}×${selectedBoardSize}"
+                                    },
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Primary
+                                )
+                            }
+                            
+                            Icon(
+                                imageVector = if (boardSizeExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = if (boardSizeExpanded) "Collapse" else "Expand",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
+                    
+                    if (boardSizeExpanded) {
                     
                     // Preset sizes with modern chips
                     val presetSizes = listOf(8, 10, 14)
@@ -167,6 +213,7 @@ fun OnboardingScreen(
                     }
                 }
             }
+            }
             
             // Modern Players Card
             ElevatedCard(
@@ -179,22 +226,53 @@ fun OnboardingScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { playersExpanded = !playersExpanded },
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Secondary)
-                        )
-                        Text(
-                            text = "Number of Players",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Secondary)
+                            )
+                            Text(
+                                text = "Number of Players",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Show current selection when collapsed
+                            if (!playersExpanded) {
+                                Text(
+                                    text = "$numberOfPlayers players",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Secondary
+                                )
+                            }
+                            
+                            Icon(
+                                imageVector = if (playersExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = if (playersExpanded) "Collapse" else "Expand",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
+                    
+                    if (playersExpanded) {
                     
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -211,6 +289,130 @@ fun OnboardingScreen(
                     }
                 }
             }
+            }
+            
+            // Modern Game Settings Card
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { settingsExpanded = !settingsExpanded },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Accent)
+                            )
+                            Text(
+                                text = "Game Settings",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Show current selection when collapsed
+                            if (!settingsExpanded) {
+                                Text(
+                                    text = if (timerEnabled) "Timer: ${timerDuration}s" else "No timer",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Accent
+                                )
+                            }
+                            
+                            Icon(
+                                imageVector = if (settingsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = if (settingsExpanded) "Collapse" else "Expand",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    
+                    if (settingsExpanded) {
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Enable Timer",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (timerEnabled) "${timerDuration} seconds per turn" else "No time limit",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        
+                        Switch(
+                            checked = timerEnabled,
+                            onCheckedChange = { timerEnabled = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Primary,
+                                checkedTrackColor = Primary.copy(alpha = 0.5f),
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        )
+                    }
+                    
+                    // Timer Duration Selection (only show when timer is enabled)
+                    if (timerEnabled) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "Timer Duration",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                listOf(10, 15, 20).forEach { duration ->
+                                    ModernChip(
+                                        text = "${duration}s",
+                                        selected = timerDuration == duration,
+                                        onClick = { timerDuration = duration },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            }
             
             // Modern Start Button
             Button(
@@ -220,7 +422,7 @@ fun OnboardingScreen(
                     } else {
                         selectedBoardSize
                     }
-                    onStartGame(GameConfig(finalBoardSize, numberOfPlayers))
+                    onStartGame(GameConfig(finalBoardSize, numberOfPlayers, emptyList(), timerEnabled, timerDuration))
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -232,13 +434,13 @@ fun OnboardingScreen(
                 )
             ) {
                 Text(
-                    text = "Start Game",
+                    text = "Start Local Game",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

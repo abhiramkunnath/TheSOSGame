@@ -1,0 +1,187 @@
+package com.example.thesosgame.ui.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.example.thesosgame.network.RoomManager
+import com.example.thesosgame.ui.theme.*
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConnectionTestDialog(
+    roomManager: RoomManager,
+    onDismiss: () -> Unit
+) {
+    var testResults by remember { mutableStateOf("Ready to test...") }
+    var isTestingConnection by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    
+    Dialog(onDismissRequest = onDismiss) {
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Connection Test",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Primary
+                    )
+                    
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
+                
+                // Test results
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Text(
+                        text = testResults,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp)
+                            .verticalScroll(rememberScrollState()),
+                        fontSize = 12.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+                
+                // Test button
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isTestingConnection = true
+                            testResults = "Starting comprehensive network test...\n\n"
+                            
+                            try {
+                                // Network diagnostics first
+                                testResults += "=== NETWORK DIAGNOSTICS ===\n"
+                                testResults += roomManager.getNetworkDiagnostics()
+                                testResults += "\n"
+                                
+                                // Test specific host from error message
+                                testResults += "=== TESTING PROBLEMATIC HOST ===\n"
+                                val hostFromError = "10.34.229.10"
+                                testResults += "Testing $hostFromError...\n"
+                                val hostResult = roomManager.testConnection(hostFromError)
+                                testResults += "$hostResult\n\n"
+                                
+                                // Test room discovery
+                                testResults += "=== TESTING ROOM DISCOVERY ===\n"
+                                testResults += "Scanning network for rooms...\n"
+                                val discoveryResult = roomManager.discoverAvailableRooms()
+                                if (discoveryResult.isSuccess) {
+                                    val rooms = discoveryResult.getOrNull() ?: emptyList()
+                                    testResults += "✅ Room discovery completed\n"
+                                    testResults += "Found ${rooms.size} rooms:\n"
+                                    if (rooms.isEmpty()) {
+                                        testResults += "  (No rooms found - this is normal if no one is hosting)\n"
+                                    } else {
+                                        rooms.forEach { room ->
+                                            testResults += "  - ${room.name} (${room.hostName}) at ${room.hostIP}\n"
+                                        }
+                                    }
+                                } else {
+                                    testResults += "❌ Room discovery failed: ${discoveryResult.exceptionOrNull()?.message}\n"
+                                }
+                                testResults += "\n"
+                                
+                                // Test room creation
+                                testResults += "=== TESTING ROOM CREATION ===\n"
+                                testResults += "Creating test room...\n"
+                                val createResult = roomManager.createRoom("Test Room", "Test Host", 8)
+                                
+                                if (createResult.isSuccess) {
+                                    val room = createResult.getOrNull()
+                                    testResults += "✅ Room created successfully\n"
+                                    testResults += "Room ID: ${room?.id}\n"
+                                    testResults += "Room name: ${room?.name}\n"
+                                    testResults += "Max players: ${room?.maxPlayers}\n\n"
+                                    
+                                    // Test server endpoints
+                                    testResults += "=== TESTING LOCAL SERVER ===\n"
+                                    val deviceIP = roomManager.getDeviceIP()
+                                    if (deviceIP != null) {
+                                        testResults += "Testing server on $deviceIP...\n"
+                                        val serverResult = roomManager.testConnection(deviceIP)
+                                        testResults += "$serverResult\n\n"
+                                    } else {
+                                        testResults += "❌ Could not determine device IP\n\n"
+                                    }
+                                    
+                                    // Clean up
+                                    testResults += "=== CLEANUP ===\n"
+                                    roomManager.leaveRoom()
+                                    testResults += "✅ Test completed and cleaned up\n"
+                                } else {
+                                    testResults += "❌ Room creation failed: ${createResult.exceptionOrNull()?.message}\n"
+                                }
+                                
+                            } catch (e: Exception) {
+                                testResults += "❌ Test failed: ${e.message}\n"
+                            }
+                            
+                            isTestingConnection = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isTestingConnection,
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    if (isTestingConnection) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text("Run Full Network Test")
+                }
+                
+                // Instructions
+                Text(
+                    text = "This test will:\n" +
+                            "1. Test specific host from error (10.34.229.10)\n" +
+                            "2. Test room discovery system\n" +
+                            "3. Create a test room\n" +
+                            "4. Start the room server\n" +
+                            "5. Show network details\n" +
+                            "6. Clean up the test",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}

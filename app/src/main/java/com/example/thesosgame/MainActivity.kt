@@ -41,6 +41,7 @@ fun SOSGameApp() {
                     }
                 )
             }
+            
             Screen.Game -> {
                 gameConfig?.let { config ->
                     GameScreen(
