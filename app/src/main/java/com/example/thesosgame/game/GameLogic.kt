@@ -36,7 +36,10 @@ class GameLogic {
             boardSize = config.boardSize,
             board = board,
             players = players,
-            currentPlayerIndex = 0
+            currentPlayerIndex = 0,
+            timeLeftInSeconds = if (config.timerEnabled) config.timerDurationSeconds else 0,
+            timerRunning = config.timerEnabled,
+            timerDurationSeconds = config.timerDurationSeconds
         )
     }
     
@@ -108,7 +111,9 @@ class GameLogic {
             currentPlayerIndex = nextPlayerIndex,
             gameEnded = isBoardFull,
             winner = winner,
-            sosPatterns = allSOSPatterns
+            sosPatterns = allSOSPatterns,
+            timeLeftInSeconds = if (gameState.timerRunning) gameState.timerDurationSeconds else 0, // Reset timer only if enabled
+            timerRunning = gameState.timerRunning && !isBoardFull // Keep timer state but stop if game ended
         )
     }
     
@@ -235,5 +240,27 @@ class GameLogic {
     
     private fun isValidPosition(row: Int, col: Int, boardSize: Int): Boolean {
         return row in 0 until boardSize && col in 0 until boardSize
+    }
+    
+    fun handleTimerExpiration(gameState: GameState): GameState {
+        // Skip to next player when timer expires (only if timer is running)
+        if (gameState.gameEnded || !gameState.timerRunning) {
+            return gameState
+        }
+        
+        val nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.size
+        
+        return gameState.copy(
+            currentPlayerIndex = nextPlayerIndex,
+            timeLeftInSeconds = gameState.timerDurationSeconds, // Reset timer for next player
+            timerRunning = true
+        )
+    }
+    
+    fun updateTimer(gameState: GameState, timeLeft: Int): GameState {
+        return gameState.copy(
+            timeLeftInSeconds = timeLeft,
+            timerRunning = timeLeft > 0 && !gameState.gameEnded
+        )
     }
 }

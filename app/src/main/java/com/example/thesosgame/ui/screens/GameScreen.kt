@@ -1,10 +1,7 @@
 package com.example.thesosgame.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,18 +13,22 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -37,12 +38,16 @@ import androidx.compose.ui.unit.sp
 import com.example.thesosgame.data.*
 import com.example.thesosgame.game.GameLogic
 import com.example.thesosgame.ui.theme.*
+import com.example.thesosgame.utils.SoundManager
+import com.example.thesosgame.utils.createSoundManager
 
 @Composable
 fun GameScreen(
     gameConfig: GameConfig,
     onBackToOnboarding: () -> Unit
 ) {
+    val context = LocalContext.current
+    val soundManager = remember { context.createSoundManager() }
     val gameLogic = remember { GameLogic() }
     var gameState by remember { 
         mutableStateOf(gameLogic.initializeGame(gameConfig))
@@ -53,11 +58,37 @@ fun GameScreen(
     var lastMoveScored by remember { mutableStateOf(false) }
     var showScoredToast by remember { mutableStateOf(false) }
     
+    // Cleanup sound manager when composable is disposed
+    DisposableEffect(Unit) {
+        onDispose {
+            soundManager.release()
+        }
+    }
+    
     // Auto-hide toast after 2 seconds
     LaunchedEffect(showScoredToast) {
         if (showScoredToast) {
             kotlinx.coroutines.delay(2000)
             showScoredToast = false
+        }
+    }
+    
+    // Timer countdown
+    LaunchedEffect(gameState.currentPlayerIndex, gameState.gameEnded) {
+        if (!gameState.gameEnded && gameState.timerRunning) {
+            var timeLeft = gameState.timeLeftInSeconds
+            while (timeLeft > 0 && !gameState.gameEnded) {
+                kotlinx.coroutines.delay(1000)
+                timeLeft--
+                gameState = gameLogic.updateTimer(gameState, timeLeft)
+                
+                // Check if game ended during this update
+                if (gameState.gameEnded) break
+            }
+            // Time expired, switch to next player
+            if (timeLeft <= 0 && !gameState.gameEnded) {
+                gameState = gameLogic.handleTimerExpiration(gameState)
+            }
         }
     }
     
@@ -109,9 +140,21 @@ fun GameScreen(
                         val newGameState = gameLogic.makeMove(gameState, row, col, selectedCellValue)
                         val newPatternCount = newGameState.sosPatterns.size
                         val scored = newPatternCount > previousPatternCount
+                        val multiplePatterns = (newPatternCount - previousPatternCount) > 1
+                        
                         lastMoveScored = scored
                         if (scored) {
                             showScoredToast = true
+                            // Play multiple chimes for multiple patterns
+                            if (multiplePatterns) {
+                                // Play multiple chimes with slight delay for multiple SOS patterns
+                                repeat(newPatternCount - previousPatternCount) { index ->
+                                    // Use LaunchedEffect for proper coroutine scope in the parent composable
+                                    soundManager.playChime()
+                                }
+                            } else {
+                                soundManager.playChime() // Single chime for one SOS pattern
+                            }
                         }
                         gameState = newGameState
                     }
@@ -143,7 +186,12 @@ fun GameScreen(
         
         // Game Over Dialog
         if (gameState.gameEnded) {
-            GameOverDialog(
+            // Play winner sound when game ends
+            LaunchedEffect(gameState.gameEnded) {
+                soundManager.playWinnerSound()
+            }
+            
+            EnthusiasticGameOverDialog(
                 winner = gameState.winner,
                 players = gameState.players,
                 onRestart = { 
@@ -577,75 +625,235 @@ private fun ScoreBoard(gameState: GameState) {
 }
 
 @Composable
-private fun GameOverDialog(
+private fun EnthusiasticGameOverDialog(
     winner: Player?,
     players: List<Player>,
     onRestart: () -> Unit,
     onBackToOnboarding: () -> Unit
 ) {
+    // Animation states
+    val infiniteTransition = rememberInfiniteTransition(label = "celebration")
+    val starRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "star rotation"
+    )
+    
+    val bounceScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = EaseInOutBounce),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bounce scale"
+    )
+    
+    val shimmerOffset by infiniteTransition.animateFloat(
+        initialValue = -1000f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer"
+    )
+    
     AlertDialog(
         onDismissRequest = { },
         title = {
-            Text(
-                text = "Game Over!",
-                textAlign = TextAlign.Center,
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
-            )
+            ) {
+                // Animated stars
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    repeat(3) { index ->
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .rotate(starRotation + (index * 120f))
+                                .padding(4.dp),
+                            tint = Color(0xFFFFD700) // Gold color
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Enthusiastic title with animation
+                Text(
+                    text = if (winner != null) "🎉 VICTORY! 🎉" else "🤝 TIE GAME! 🤝",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .scale(bounceScale)
+                        .fillMaxWidth(),
+                    color = if (winner != null) winner.color else MaterialTheme.colorScheme.primary
+                )
+            }
         },
         text = {
             Column {
                 if (winner != null) {
+                    // Winner announcement with shimmer effect
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        winner.color.copy(alpha = 0.1f),
+                                        winner.color.copy(alpha = 0.3f),
+                                        winner.color.copy(alpha = 0.1f)
+                                    ),
+                                    start = Offset(shimmerOffset - 200f, 0f),
+                                    end = Offset(shimmerOffset + 200f, 0f)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(16.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "${winner.name} is the Champion!",
+                                textAlign = TextAlign.Center,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = winner.color,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Text(
+                                text = "${winner.score} Points!",
+                                textAlign = TextAlign.Center,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = winner.color,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                } else {
                     Text(
-                        text = "${winner.name} wins with ${winner.score} points!",
+                        text = "🤝 Amazing game everyone! 🤝",
                         textAlign = TextAlign.Center,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
-                        color = winner.color,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    Text(
-                        text = "It's a tie!",
-                        textAlign = TextAlign.Center,
-                        fontSize = 16.sp,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 
-                Text(
-                    text = "Final Scores:",
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                
-                players.sortedByDescending { it.score }.forEach { player ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                // Final scores with enhanced styling
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = player.name,
-                            color = player.color
+                            text = "Final Scores",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        Text(
-                            text = "${player.score}",
-                            fontWeight = FontWeight.Bold
-                        )
+                        
+                        players.sortedByDescending { it.score }.forEachIndexed { index, player ->
+                            val isWinner = player == winner
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .background(
+                                        if (isWinner) player.color.copy(alpha = 0.1f) else Color.Transparent,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = when (index) {
+                                            0 -> "🥇"
+                                            1 -> "🥈" 
+                                            2 -> "🥉"
+                                            else -> "${index + 1}."
+                                        },
+                                        fontSize = 16.sp,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    
+                                    Text(
+                                        text = player.name,
+                                        color = player.color,
+                                        fontWeight = if (isWinner) FontWeight.ExtraBold else FontWeight.Medium,
+                                        fontSize = if (isWinner) 16.sp else 14.sp
+                                    )
+                                }
+                                
+                                Text(
+                                    text = "${player.score}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = if (isWinner) 18.sp else 16.sp,
+                                    color = if (isWinner) player.color else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
                     }
                 }
             }
         },
         confirmButton = {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                TextButton(onClick = onBackToOnboarding) {
-                    Text("New Game")
+                OutlinedButton(
+                    onClick = onBackToOnboarding,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "New Game",
+                        maxLines = 1
+                    )
                 }
-                Button(onClick = onRestart) {
-                    Text("Play Again")
+                Button(
+                    onClick = onRestart,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text(
+                        text = "Play Again",
+                        maxLines = 1
+                    )
                 }
             }
         }
@@ -1137,21 +1345,60 @@ private fun ModernCurrentPlayerSection(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(currentPlayer.color)
-                    )
-                    Text(
-                        text = "${currentPlayer.name}'s Turn",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = currentPlayer.color
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(currentPlayer.color)
+                        )
+                        Text(
+                            text = "${currentPlayer.name}'s Turn",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = currentPlayer.color
+                        )
+                    }
+                    
+                    // Timer display - only show if timer is enabled
+                    if (gameState.timerRunning) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (gameState.timeLeftInSeconds <= 3) {
+                                Color.Red.copy(alpha = 0.1f)
+                            } else {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "⏱",
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = "${gameState.timeLeftInSeconds}s",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (gameState.timeLeftInSeconds <= 3) {
+                                        Color.Red
+                                    } else {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
                 
                 Row(

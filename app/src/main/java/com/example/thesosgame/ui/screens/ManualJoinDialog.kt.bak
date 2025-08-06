@@ -1,0 +1,159 @@
+package com.example.thesosgame.ui.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.example.thesosgame.data.RoomShareData
+import com.example.thesosgame.network.RoomManager
+import com.example.thesosgame.ui.theme.Primary
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ManualJoinDialog(
+    roomManager: RoomManager,
+    onDismiss: () -> Unit,
+    onJoinSuccess: () -> Unit
+) {
+    var roomId by remember { mutableStateOf("") }
+    var hostIP by remember { mutableStateOf("") }
+    var playerName by remember { mutableStateOf("") }
+    var isJoining by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+    
+    val scope = rememberCoroutineScope()
+    
+    Dialog(onDismissRequest = onDismiss) {
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Join Room Manually",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Primary
+                    )
+                    
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
+                
+                // Input fields
+                OutlinedTextField(
+                    value = playerName,
+                    onValueChange = { playerName = it },
+                    label = { Text("Your Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                OutlinedTextField(
+                    value = roomId,
+                    onValueChange = { roomId = it },
+                    label = { Text("Room ID") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("e.g., 1234") }
+                )
+                
+                OutlinedTextField(
+                    value = hostIP,
+                    onValueChange = { hostIP = it },
+                    label = { Text("Host IP Address") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("e.g., 192.168.1.100") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                
+                // Error message
+                if (errorMessage.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = errorMessage,
+                            modifier = Modifier.padding(12.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+                
+                // Join button
+                Button(
+                    onClick = {
+                        if (playerName.isBlank() || roomId.isBlank() || hostIP.isBlank()) {
+                            errorMessage = "Please fill in all fields"
+                            return@Button
+                        }
+                        
+                        scope.launch {
+                            isJoining = true
+                            errorMessage = ""
+                            
+                            try {
+                                val result = roomManager.joinRoomDirectly(hostIP, roomId, playerName)
+                                if (result.isSuccess) {
+                                    onJoinSuccess()
+                                } else {
+                                    errorMessage = result.exceptionOrNull()?.message ?: "Failed to join room"
+                                }
+                            } catch (e: Exception) {
+                                errorMessage = "Connection failed: ${e.message}"
+                            }
+                            
+                            isJoining = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isJoining && playerName.isNotBlank() && roomId.isNotBlank() && hostIP.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    if (isJoining) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text("Join Room")
+                }
+                
+                // Help text
+                Text(
+                    text = "Ask the room host for the Room ID and their IP address. You can find the IP address in the connection test.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
